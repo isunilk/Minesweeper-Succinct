@@ -1,4 +1,4 @@
-// Updated: Removed text from header, keeping only logo and increased logo size
+// Updated: Increased logo size and improved navbar styling
 "use client";
 
 import Link from "next/link";

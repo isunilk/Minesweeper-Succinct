@@ -1,4 +1,4 @@
-// Updated: Added partial game verification and improved proof generation
+// Updated: Added partial game verification, improved proof generation, and added SP1 explanation
 import { Cell, PartialGameScore } from "./types";
 
 // Calculate partial game score based on revealed cells and difficulty

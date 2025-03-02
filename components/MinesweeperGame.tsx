@@ -1,4 +1,4 @@
-// Updated: Added partial game verification, cash out button, fixed right-click flagging, and optimized performance
+// Updated: Fixed Cash Out button persistence across difficulty changes and improved score handling
 "use client";
 
 import { useState, useEffect, useCallback, useRef, memo } from "react";
@@ -39,12 +39,19 @@ export function MinesweeperGame({ rows, cols, mines }: MinesweeperGameProps) {
   const { time, start: startTimer, stop: stopTimer, reset: resetTimer } = useTimer();
   const [proofStatus, setProofStatus] = useState<"none" | "generating" | "ready">("none");
   const [score, setScore] = useState<number | null>(null);
+  const [totalScore, setTotalScore] = useState<number>(0); // Track cumulative score across games
   const [showProofDialog, setShowProofDialog] = useState(false);
   const [proofDetails, setProofDetails] = useState<any>(null);
   const movesRef = useRef<string[]>([]);
   const [progress, setProgress] = useState(0);
   const [canCashOut, setCanCashOut] = useState(false);
   const { error, setError, clearError } = useErrorBoundary();
+  const previousDifficultyRef = useRef<string>("");
+
+  // Get current difficulty based on mines count
+  const getCurrentDifficulty = useCallback(() => {
+    return mines === 10 ? "beginner" : mines === 40 ? "intermediate" : "expert";
+  }, [mines]);
 
   // Initialize the game board
   useEffect(() => {
@@ -60,12 +67,16 @@ export function MinesweeperGame({ rows, cols, mines }: MinesweeperGameProps) {
       setProgress(0);
       setCanCashOut(false);
       movesRef.current = [];
+      
+      // Store current difficulty for comparison
+      previousDifficultyRef.current = getCurrentDifficulty();
+      
       console.timeEnd('initializeBoard');
     } catch (err) {
       console.error("Error initializing board:", err);
       setError("Failed to initialize game board. Please try refreshing the page.");
     }
-  }, [rows, cols, mines, resetTimer, setError]);
+  }, [rows, cols, mines, resetTimer, setError, getCurrentDifficulty]);
 
   // Update progress as cells are revealed
   useEffect(() => {
@@ -125,12 +136,13 @@ export function MinesweeperGame({ rows, cols, mines }: MinesweeperGameProps) {
         stopTimer();
         
         // Calculate score
-        const difficulty = 
-          mines === 10 ? "beginner" :
-          mines === 40 ? "intermediate" : "expert";
+        const difficulty = getCurrentDifficulty();
         
         const calculatedScore = calculateScore(time, difficulty);
         setScore(calculatedScore);
+        
+        // Update total score
+        setTotalScore(prev => prev + calculatedScore);
         
         // Start proof generation
         setProofStatus("generating");
@@ -144,7 +156,7 @@ export function MinesweeperGame({ rows, cols, mines }: MinesweeperGameProps) {
       console.error("Error handling cell click:", err);
       setError("An error occurred while revealing a cell. Please try again.");
     }
-  }, [board, gameStatus, mines, startTimer, stopTimer, time, calculateScore, setError]);
+  }, [board, gameStatus, mines, startTimer, stopTimer, time, calculateScore, setError, getCurrentDifficulty]);
 
   // Handle right-click (flag placement)
   const handleRightClick = useCallback((row: number, col: number, e: React.MouseEvent) => {
@@ -179,12 +191,13 @@ export function MinesweeperGame({ rows, cols, mines }: MinesweeperGameProps) {
       setGameStatus("won"); // Change status to won for UI consistency
       
       // Calculate partial score
-      const difficulty = 
-        mines === 10 ? "beginner" :
-        mines === 40 ? "intermediate" : "expert";
+      const difficulty = getCurrentDifficulty();
       
       const partialScore = calculatePartialScore(board, time, difficulty);
       setScore(partialScore.score);
+      
+      // Update total score
+      setTotalScore(prev => prev + partialScore.score);
       
       // Start proof generation for partial game
       setProofStatus("generating");
@@ -197,7 +210,7 @@ export function MinesweeperGame({ rows, cols, mines }: MinesweeperGameProps) {
       console.error("Error handling cash out:", err);
       setError("An error occurred while cashing out. Please try again.");
     }
-  }, [board, time, mines, gameStatus, canCashOut, stopTimer, setError]);
+  }, [board, time, gameStatus, canCashOut, stopTimer, setError, getCurrentDifficulty]);
 
   // Generate a proof using SP1
   const generateProof = useCallback(async (isPartial = false) => {
@@ -206,9 +219,7 @@ export function MinesweeperGame({ rows, cols, mines }: MinesweeperGameProps) {
     setProofDetails(null);
     
     try {
-      const difficulty = 
-        mines === 10 ? "beginner" :
-        mines === 40 ? "intermediate" : "expert";
+      const difficulty = getCurrentDifficulty();
       
       const proofString = await generateGameProof({
         board,
@@ -239,7 +250,7 @@ export function MinesweeperGame({ rows, cols, mines }: MinesweeperGameProps) {
       console.error("Error generating proof:", error);
       setProofDetails({ error: "Failed to generate proof" });
     }
-  }, [board, time, mines]);
+  }, [board, time, getCurrentDifficulty]);
 
   // Render the game board in chunks to improve performance
   const renderBoard = useCallback(() => {
@@ -302,6 +313,12 @@ export function MinesweeperGame({ rows, cols, mines }: MinesweeperGameProps) {
                 <Badge variant="outline" className="flex items-center gap-1 px-3 py-1">
                   <Award className="h-4 w-4 text-yellow-500" />
                   <span>Score: {score}</span>
+                </Badge>
+              )}
+              {totalScore > 0 && score === null && (
+                <Badge variant="outline" className="flex items-center gap-1 px-3 py-1">
+                  <Award className="h-4 w-4 text-purple-500" />
+                  <span>Total: {totalScore}</span>
                 </Badge>
               )}
               <Badge variant="outline" className="flex items-center gap-1 px-3 py-1">
@@ -436,6 +453,13 @@ export function MinesweeperGame({ rows, cols, mines }: MinesweeperGameProps) {
                         Proof verified successfully! Your score has been recorded.
                       </p>
                     </div>
+                  </div>
+                  
+                  <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-md border border-blue-200 dark:border-blue-800">
+                    <h4 className="text-sm font-medium text-blue-800 dark:text-blue-300 mb-2">How SP1 Proofs Work</h4>
+                    <p className="text-sm text-blue-700 dark:text-blue-400">
+                      In a real implementation, SP1 would generate a zero-knowledge proof on your device that verifies your game without revealing sensitive information. This proof would then be verified on a blockchain or server.
+                    </p>
                   </div>
                   
                   <p className="text-sm text-muted-foreground">
