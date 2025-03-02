@@ -1,4 +1,4 @@
-// Created: Type definitions for the Minesweeper game
+// Updated: Added types for partial game verification
 export type GameStatus = "waiting" | "playing" | "won" | "lost";
 
 export interface Cell {
@@ -38,4 +38,13 @@ export interface ProofData {
   time: number; // Time taken to complete
   difficulty: string; // Game difficulty
   success: boolean; // Whether the game was won
+  revealedCells: number; // Number of cells revealed
+  totalNonMineCells: number; // Total number of non-mine cells
+}
+
+export interface PartialGameScore {
+  score: number;
+  percentComplete: number;
+  cellsRevealed: number;
+  totalSafeCells: number;
 }

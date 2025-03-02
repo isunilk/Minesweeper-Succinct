@@ -72,6 +72,7 @@ export default function Home() {
                       <li>You revealed all non-mine cells</li>
                       <li>Your completion time is accurate</li>
                     </ul>
+                    <p className="mt-2 text-amber-600 dark:text-amber-400 font-medium">New! You can now "Cash Out" for partial scores after revealing at least 30% of the board.</p>
                   </div>
                 </div>
               </div>

@@ -1,17 +1,17 @@
-// Updated: Added score calculation and SP1 proof generation
+// Updated: Added partial game verification, cash out button, and fixed right-click flagging
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Bomb, Clock, Flag, Trophy, AlertTriangle, Award, Shield } from "lucide-react";
+import { Bomb, Clock, Flag, Trophy, AlertTriangle, Award, Shield, DollarSign, Percent } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTimer } from "@/hooks/useTimer";
-import { generateBoard, revealCell, flagCell, checkWin } from "@/lib/minesweeper";
+import { generateBoard, revealCell, flagCell, checkWin, calculateProgress } from "@/lib/minesweeper";
 import { GameCell } from "@/components/GameCell";
 import { GameStatus } from "@/lib/types";
-import { generateGameProof, verifyGameProof } from "@/lib/sp1";
+import { generateGameProof, verifyGameProof, calculatePartialScore } from "@/lib/sp1";
 import { 
   Dialog,
   DialogContent,
@@ -20,6 +20,7 @@ import {
   DialogTitle,
   DialogFooter
 } from "@/components/ui/dialog";
+import { Progress } from "@/components/ui/progress";
 
 interface MinesweeperGameProps {
   rows: number;
@@ -37,6 +38,8 @@ export function MinesweeperGame({ rows, cols, mines }: MinesweeperGameProps) {
   const [showProofDialog, setShowProofDialog] = useState(false);
   const [proofDetails, setProofDetails] = useState<any>(null);
   const movesRef = useRef<string[]>([]);
+  const [progress, setProgress] = useState(0);
+  const [canCashOut, setCanCashOut] = useState(false);
 
   // Initialize the game board
   useEffect(() => {
@@ -47,8 +50,21 @@ export function MinesweeperGame({ rows, cols, mines }: MinesweeperGameProps) {
     resetTimer();
     setProofStatus("none");
     setScore(null);
+    setProgress(0);
+    setCanCashOut(false);
     movesRef.current = [];
   }, [rows, cols, mines, resetTimer]);
+
+  // Update progress as cells are revealed
+  useEffect(() => {
+    if (gameStatus === "playing") {
+      const currentProgress = calculateProgress(board, mines);
+      setProgress(currentProgress);
+      
+      // Enable cash out when at least 30% of the board is revealed
+      setCanCashOut(currentProgress >= 30);
+    }
+  }, [board, mines, gameStatus]);
 
   // Calculate score based on time and difficulty
   const calculateScore = useCallback((time: number, difficulty: string) => {
@@ -105,7 +121,7 @@ export function MinesweeperGame({ rows, cols, mines }: MinesweeperGameProps) {
       // Generate proof (would be replaced with actual SP1 proof generation)
       setTimeout(() => {
         setProofStatus("ready");
-      }, 2000);
+      }, 800);
     }
   }, [board, gameStatus, mines, startTimer, stopTimer, time, calculateScore]);
 
@@ -128,10 +144,35 @@ export function MinesweeperGame({ rows, cols, mines }: MinesweeperGameProps) {
     setFlagsPlaced(result.flagCount);
   }, [board, gameStatus, startTimer]);
 
+  // Cash out with partial progress
+  const handleCashOut = useCallback(() => {
+    if (gameStatus !== "playing" || !canCashOut) return;
+    
+    stopTimer();
+    setGameStatus("won"); // Change status to won for UI consistency
+    
+    // Calculate partial score
+    const difficulty = 
+      mines === 10 ? "beginner" :
+      mines === 40 ? "intermediate" : "expert";
+    
+    const partialScore = calculatePartialScore(board, time, difficulty);
+    setScore(partialScore.score);
+    
+    // Start proof generation for partial game
+    setProofStatus("generating");
+    
+    // Generate partial game proof
+    setTimeout(() => {
+      setProofStatus("ready");
+    }, 800);
+  }, [board, time, mines, gameStatus, canCashOut, stopTimer]);
+
   // Generate a proof using SP1
-  const generateProof = useCallback(async () => {
+  const generateProof = useCallback(async (isPartial = false) => {
     // This would be replaced with actual SP1 proof generation
     setShowProofDialog(true);
+    setProofDetails(null);
     
     const difficulty = 
       mines === 10 ? "beginner" :
@@ -142,7 +183,8 @@ export function MinesweeperGame({ rows, cols, mines }: MinesweeperGameProps) {
         board,
         time,
         difficulty,
-        moves: movesRef.current
+        moves: movesRef.current,
+        isPartial
       });
       
       // Verify the proof
@@ -153,7 +195,11 @@ export function MinesweeperGame({ rows, cols, mines }: MinesweeperGameProps) {
           gameId: verificationResult.gameId,
           score: verificationResult.score,
           time: verificationResult.time,
-          difficulty: verificationResult.difficulty
+          difficulty: verificationResult.difficulty,
+          isComplete: verificationResult.isComplete,
+          percentComplete: verificationResult.percentComplete,
+          cellsRevealed: verificationResult.cellsRevealed,
+          totalSafeCells: verificationResult.totalSafeCells
         });
       } else {
         setProofDetails({ error: "Proof verification failed" });
@@ -166,13 +212,17 @@ export function MinesweeperGame({ rows, cols, mines }: MinesweeperGameProps) {
 
   return (
     <>
-      <Card className="w-full">
+      <Card className="card w-full">
         <CardHeader className="pb-3">
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-2">
               <Badge variant="outline" className="flex items-center gap-1 px-3 py-1">
                 <Bomb className="h-4 w-4" />
                 <span>{mines - flagsPlaced}</span>
+              </Badge>
+              <Badge variant="outline" className="flex items-center gap-1 px-3 py-1">
+                <Flag className="h-4 w-4" />
+                <span>{flagsPlaced}</span>
               </Badge>
             </div>
             <div className="flex items-center gap-4">
@@ -188,6 +238,15 @@ export function MinesweeperGame({ rows, cols, mines }: MinesweeperGameProps) {
               </Badge>
             </div>
           </div>
+          {gameStatus === "playing" && (
+            <div className="mt-2">
+              <div className="flex justify-between items-center mb-1 text-xs">
+                <span>Progress</span>
+                <span>{Math.round(progress)}%</span>
+              </div>
+              <Progress value={progress} className="h-2" />
+            </div>
+          )}
         </CardHeader>
         <CardContent>
           <div 
@@ -227,16 +286,32 @@ export function MinesweeperGame({ rows, cols, mines }: MinesweeperGameProps) {
               </div>
             )}
           </div>
-          {gameStatus === "won" && proofStatus === "ready" && (
-            <Button onClick={generateProof} className="bg-green-600 hover:bg-green-700">
-              Verify Score with ZK Proof
-            </Button>
-          )}
-          {gameStatus === "won" && proofStatus === "generating" && (
-            <Button disabled className="bg-amber-600">
-              Generating Proof...
-            </Button>
-          )}
+          <div className="flex gap-2">
+            {gameStatus === "playing" && canCashOut && (
+              <Button 
+                onClick={handleCashOut} 
+                className="bg-amber-600 hover:bg-amber-700 flex items-center gap-2"
+              >
+                <DollarSign className="h-4 w-4" />
+                Cash Out ({Math.round(progress)}%)
+              </Button>
+            )}
+            {gameStatus === "won" && proofStatus === "ready" && (
+              <Button onClick={() => generateProof(false)} className="bg-green-600 hover:bg-green-700">
+                Verify Score with ZK Proof
+              </Button>
+            )}
+            {gameStatus === "lost" && (
+              <Button onClick={() => generateProof(true)} className="bg-blue-600 hover:bg-blue-700">
+                Verify Partial Progress
+              </Button>
+            )}
+            {(gameStatus === "won" || gameStatus === "lost") && proofStatus === "generating" && (
+              <Button disabled className="bg-amber-600">
+                Generating Proof...
+              </Button>
+            )}
+          </div>
         </CardFooter>
       </Card>
 
@@ -274,20 +349,37 @@ export function MinesweeperGame({ rows, cols, mines }: MinesweeperGameProps) {
                       <p className="text-sm font-medium text-muted-foreground">Score</p>
                       <p className="font-bold">{proofDetails.score}</p>
                     </div>
+                    
+                    {proofDetails.isComplete === false && (
+                      <>
+                        <div className="space-y-1">
+                          <p className="text-sm font-medium text-muted-foreground">Completion</p>
+                          <div className="flex items-center gap-1">
+                            <Percent className="h-4 w-4 text-blue-500" />
+                            <span>{Math.round(proofDetails.percentComplete)}%</span>
+                          </div>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-sm font-medium text-muted-foreground">Cells Cleared</p>
+                          <p>{proofDetails.cellsRevealed} of {proofDetails.totalSafeCells}</p>
+                        </div>
+                      </>
+                    )}
                   </div>
                   
-                  <div className="rounded-md bg-green-50 p-4 border border-green-200">
+                  <div className="rounded-md bg-green-50 p-4 border border-green-200 dark:bg-green-900/20 dark:border-green-800">
                     <div className="flex items-center">
                       <Shield className="h-5 w-5 text-green-500 mr-2" />
-                      <p className="text-green-700">
+                      <p className="text-green-700 dark:text-green-300">
                         Proof verified successfully! Your score has been recorded.
                       </p>
                     </div>
                   </div>
                   
                   <p className="text-sm text-muted-foreground">
-                    This proof cryptographically verifies that you completed a valid Minesweeper game
-                    without revealing the board layout or your specific moves.
+                    {proofDetails.isComplete 
+                      ? "This proof cryptographically verifies that you completed a valid Minesweeper game without revealing the board layout or your specific moves."
+                      : "This proof cryptographically verifies your partial progress in this Minesweeper game, confirming you revealed the claimed number of cells without hitting any mines."}
                   </p>
                 </>
               )}

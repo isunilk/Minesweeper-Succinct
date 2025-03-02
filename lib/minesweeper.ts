@@ -1,4 +1,4 @@
-// Updated: Enhanced Minesweeper game logic with WASM integration placeholder
+// Updated: Fixed right-click flagging and improved game logic
 import { Cell, RevealResult, FlagResult } from "./types";
 import { loadWasmModule, WasmInterface } from "./sp1";
 
@@ -187,6 +187,22 @@ export function checkWin(board: Cell[][], mineCount: number): boolean {
   
   // Player wins if all non-mine cells are revealed
   return revealedCount === totalCells - mineCount;
+}
+
+// Calculate progress percentage
+export function calculateProgress(board: Cell[][], mineCount: number): number {
+  let revealedCount = 0;
+  let totalSafeCells = board.length * board[0].length - mineCount;
+  
+  for (let row = 0; row < board.length; row++) {
+    for (let col = 0; col < board[0].length; col++) {
+      if (board[row][col].isRevealed && !board[row][col].isMine) {
+        revealedCount++;
+      }
+    }
+  }
+  
+  return (revealedCount / totalSafeCells) * 100;
 }
 
 // Helper function to serialize board for WASM

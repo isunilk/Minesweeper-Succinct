@@ -1,4 +1,4 @@
-// Updated: Removed text from header, keeping only logo
+// Updated: Removed text from header, keeping only logo and increased logo size
 "use client";
 
 import Link from "next/link";
@@ -16,8 +16,8 @@ export function Navbar() {
             <Image 
               src="/succinct-arcade-logo.svg" 
               alt="Succinct Arcade Logo" 
-              width={32} 
-              height={32} 
+              width={64} 
+              height={64} 
             />
           </Link>
         </div>

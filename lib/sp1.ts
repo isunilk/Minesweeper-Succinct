@@ -1,5 +1,56 @@
-// Updated: Implemented SP1 integration for zero-knowledge proofs
-import { Cell } from "./types";
+// Updated: Added partial game verification and improved proof generation
+import { Cell, PartialGameScore } from "./types";
+
+// Calculate partial game score based on revealed cells and difficulty
+export function calculatePartialScore(
+  board: Cell[][],
+  time: number,
+  difficulty: string
+): PartialGameScore {
+  // Count revealed cells and total safe cells
+  let revealedCells = 0;
+  let totalSafeCells = 0;
+  let totalMines = 0;
+  
+  for (let row = 0; row < board.length; row++) {
+    for (let col = 0; col < board[0].length; col++) {
+      if (board[row][col].isMine) {
+        totalMines++;
+      } else {
+        totalSafeCells++;
+        if (board[row][col].isRevealed) {
+          revealedCells++;
+        }
+      }
+    }
+  }
+  
+  // Calculate percentage of completion
+  const percentComplete = (revealedCells / totalSafeCells) * 100;
+  
+  // Calculate score based on percentage, time, and difficulty
+  const difficultyMultiplier = 
+    difficulty === "beginner" ? 1 :
+    difficulty === "intermediate" ? 2.5 :
+    difficulty === "expert" ? 5 : 1;
+  
+  // Base score calculation with progressive bonus
+  // The more cells revealed, the higher the score per cell
+  const progressiveBonus = Math.pow(percentComplete / 100, 1.5); // Exponential bonus for progress
+  const timeBonus = Math.max(1, 100 / (time + 10)); // Faster times get better bonus
+  
+  // Final score calculation
+  const score = Math.floor(
+    revealedCells * difficultyMultiplier * progressiveBonus * timeBonus
+  );
+  
+  return {
+    score,
+    percentComplete,
+    cellsRevealed: revealedCells,
+    totalSafeCells
+  };
+}
 
 // SP1 proof generation for Minesweeper game
 export async function generateGameProof(gameData: {
@@ -7,6 +58,7 @@ export async function generateGameProof(gameData: {
   time: number;
   difficulty: string;
   moves: string[];
+  isPartial?: boolean;
 }): Promise<string> {
   console.log("Generating SP1 proof for game data:", gameData);
   
@@ -14,8 +66,32 @@ export async function generateGameProof(gameData: {
   // The proof would verify:
   // 1. The board was generated with the correct number of mines
   // 2. All revealed cells follow valid game rules
-  // 3. The player revealed all non-mine cells (win condition)
-  // 4. The time recorded is accurate
+  // 3. For complete games: the player revealed all non-mine cells (win condition)
+  // 4. For partial games: the player revealed the claimed number of cells
+  // 5. The time recorded is accurate
+  
+  // Calculate score based on whether this is a complete or partial game
+  const isComplete = !gameData.isPartial;
+  let score: number;
+  let percentComplete: number = 100;
+  let cellsRevealed: number = 0;
+  let totalSafeCells: number = 0;
+  
+  if (isComplete) {
+    // Complete game score calculation
+    score = calculateScore(gameData.time, gameData.difficulty);
+  } else {
+    // Partial game score calculation
+    const partialScore = calculatePartialScore(
+      gameData.board,
+      gameData.time,
+      gameData.difficulty
+    );
+    score = partialScore.score;
+    percentComplete = partialScore.percentComplete;
+    cellsRevealed = partialScore.cellsRevealed;
+    totalSafeCells = partialScore.totalSafeCells;
+  }
   
   // For now, we'll simulate the proof generation with a delay
   return new Promise((resolve) => {
@@ -32,14 +108,18 @@ export async function generateGameProof(gameData: {
           cols: gameData.board[0].length
         },
         mineCount: countMines(gameData.board),
-        score: calculateScore(gameData.time, gameData.difficulty),
+        score: score,
+        isComplete: isComplete,
+        percentComplete: percentComplete,
+        cellsRevealed: cellsRevealed,
+        totalSafeCells: totalSafeCells,
         verified: true,
         // This would be a real cryptographic signature in a real implementation
         signature: "0x" + Array(64).fill(0).map(() => Math.floor(Math.random() * 16).toString(16)).join('')
       };
       
       resolve(JSON.stringify(mockProof));
-    }, 2000);
+    }, 800); // Reduced delay to improve responsiveness
   });
 }
 
@@ -75,6 +155,10 @@ export async function verifyGameProof(proof: string): Promise<{
   time?: number;
   difficulty?: string;
   gameId?: string;
+  isComplete?: boolean;
+  percentComplete?: number;
+  cellsRevealed?: number;
+  totalSafeCells?: number;
 }> {
   console.log("Verifying SP1 proof:", proof);
   
@@ -90,7 +174,11 @@ export async function verifyGameProof(proof: string): Promise<{
             score: proofData.score,
             time: proofData.time,
             difficulty: proofData.difficulty,
-            gameId: proofData.gameId
+            gameId: proofData.gameId,
+            isComplete: proofData.isComplete,
+            percentComplete: proofData.percentComplete,
+            cellsRevealed: proofData.cellsRevealed,
+            totalSafeCells: proofData.totalSafeCells
           });
         } else {
           resolve({ valid: false });
@@ -98,7 +186,7 @@ export async function verifyGameProof(proof: string): Promise<{
       } catch (e) {
         resolve({ valid: false });
       }
-    }, 1000);
+    }, 500); // Reduced delay to improve responsiveness
   });
 }
 

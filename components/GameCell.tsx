@@ -1,4 +1,4 @@
-// Created: Individual cell component for the Minesweeper game
+// Updated: Fixed right-click flagging and improved cell styling
 "use client";
 
 import { cn } from "@/lib/utils";
@@ -62,7 +62,8 @@ export function GameCell({ cell, onClick, onRightClick, gameStatus }: GameCellPr
         cell.isRevealed 
           ? "bg-muted" 
           : "bg-card hover:bg-accent",
-        (gameStatus === "lost" && cell.isMine && cell.isRevealed) && "bg-red-100"
+        (gameStatus === "lost" && cell.isMine && cell.isRevealed) && "bg-red-100 dark:bg-red-900/50",
+        cell.isFlagged && "bg-amber-50 dark:bg-amber-900/30"
       )}
       onClick={onClick}
       onContextMenu={onRightClick}
