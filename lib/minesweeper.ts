@@ -1,8 +1,31 @@
-// Created: Core Minesweeper game logic
+// Updated: Enhanced Minesweeper game logic with WASM integration placeholder
 import { Cell, RevealResult, FlagResult } from "./types";
+import { loadWasmModule, WasmInterface } from "./sp1";
+
+// This variable would hold the WASM module once loaded
+let wasmModule: WasmInterface | null = null;
+
+// Initialize WASM module
+export async function initWasm(): Promise<boolean> {
+  try {
+    wasmModule = await loadWasmModule();
+    return wasmModule !== null;
+  } catch (error) {
+    console.error("Failed to load WASM module:", error);
+    return false;
+  }
+}
 
 // Generate a new game board
 export function generateBoard(rows: number, cols: number, mineCount: number): Cell[][] {
+  // If WASM module is available, use it for better performance and security
+  if (wasmModule) {
+    // This would call the WASM implementation
+    const boardData = wasmModule.generateBoard(rows, cols, mineCount);
+    return deserializeBoard(boardData, rows, cols);
+  }
+  
+  // Fallback to JavaScript implementation
   // Create empty board
   const board: Cell[][] = Array(rows).fill(null).map(() => 
     Array(cols).fill(null).map(() => ({
@@ -48,6 +71,17 @@ export function generateBoard(rows: number, cols: number, mineCount: number): Ce
 
 // Reveal a cell and handle cascading reveals for empty cells
 export function revealCell(board: Cell[][], row: number, col: number): RevealResult {
+  // If WASM module is available, use it
+  if (wasmModule) {
+    const serializedBoard = serializeBoard(board);
+    const result = wasmModule.revealCell(serializedBoard, row, col);
+    return {
+      updatedBoard: deserializeBoard(result.board, board.length, board[0].length),
+      hitMine: result.hitMine
+    };
+  }
+  
+  // Fallback to JavaScript implementation
   const updatedBoard = JSON.parse(JSON.stringify(board));
   
   // If cell is flagged or already revealed, do nothing
@@ -95,6 +129,17 @@ export function revealCell(board: Cell[][], row: number, col: number): RevealRes
 
 // Flag or unflag a cell
 export function flagCell(board: Cell[][], row: number, col: number): FlagResult {
+  // If WASM module is available, use it
+  if (wasmModule) {
+    const serializedBoard = serializeBoard(board);
+    const result = wasmModule.flagCell(serializedBoard, row, col);
+    return {
+      updatedBoard: deserializeBoard(result.board, board.length, board[0].length),
+      flagCount: result.flagCount
+    };
+  }
+  
+  // Fallback to JavaScript implementation
   const updatedBoard = JSON.parse(JSON.stringify(board));
   let flagCount = 0;
   
@@ -124,6 +169,13 @@ export function flagCell(board: Cell[][], row: number, col: number): FlagResult 
 
 // Check if the player has won
 export function checkWin(board: Cell[][], mineCount: number): boolean {
+  // If WASM module is available, use it
+  if (wasmModule) {
+    const serializedBoard = serializeBoard(board);
+    return wasmModule.checkWin(serializedBoard, mineCount);
+  }
+  
+  // Fallback to JavaScript implementation
   let revealedCount = 0;
   let totalCells = board.length * board[0].length;
   
@@ -137,33 +189,59 @@ export function checkWin(board: Cell[][], mineCount: number): boolean {
   return revealedCount === totalCells - mineCount;
 }
 
-// This would be replaced with actual WASM/SP1 integration
-export function generateProof(board: Cell[][], time: number, difficulty: string): Promise<string> {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      // Simulate proof generation
-      const proofData = {
-        board: JSON.stringify(board),
-        time,
-        difficulty,
-        timestamp: Date.now()
-      };
-      
-      resolve(btoa(JSON.stringify(proofData)));
-    }, 1000);
-  });
+// Helper function to serialize board for WASM
+function serializeBoard(board: Cell[][]): Uint8Array {
+  // This is a simplified example - in a real implementation,
+  // we would need to properly serialize the board data for WASM
+  
+  const rows = board.length;
+  const cols = board[0].length;
+  
+  // 4 bytes per cell (isMine, isRevealed, isFlagged, neighborMines)
+  const buffer = new Uint8Array(rows * cols * 4);
+  
+  let index = 0;
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < cols; col++) {
+      const cell = board[row][col];
+      buffer[index++] = cell.isMine ? 1 : 0;
+      buffer[index++] = cell.isRevealed ? 1 : 0;
+      buffer[index++] = cell.isFlagged ? 1 : 0;
+      buffer[index++] = cell.neighborMines;
+    }
+  }
+  
+  return buffer;
 }
 
-// This would be replaced with actual verification logic
-export function verifyProof(proof: string): Promise<boolean> {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      try {
-        const proofData = JSON.parse(atob(proof));
-        resolve(true);
-      } catch (e) {
-        resolve(false);
-      }
-    }, 500);
-  });
+// Helper function to deserialize board from WASM
+function deserializeBoard(buffer: Uint8Array, rows: number, cols: number): Cell[][] {
+  // This is a simplified example - in a real implementation,
+  // we would need to properly deserialize the board data from WASM
+  
+  const board: Cell[][] = [];
+  
+  let index = 0;
+  for (let row = 0; row < rows; row++) {
+    board[row] = [];
+    for (let col = 0; col < cols; col++) {
+      board[row][col] = {
+        isMine: buffer[index++] === 1,
+        isRevealed: buffer[index++] === 1,
+        isFlagged: buffer[index++] === 1,
+        neighborMines: buffer[index++]
+      };
+    }
+  }
+  
+  return board;
 }
+
+// Initialize WASM when the module is imported
+initWasm().then(success => {
+  if (success) {
+    console.log("WASM module loaded successfully");
+  } else {
+    console.log("Using JavaScript fallback for game logic");
+  }
+});

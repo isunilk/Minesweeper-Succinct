@@ -1,4 +1,4 @@
-// Updated: Added navbar to the main page
+// Updated: Enhanced main page with score explanation
 "use client";
 
 import { useState } from "react";
@@ -6,7 +6,7 @@ import { MinesweeperGame } from "@/components/MinesweeperGame";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Bomb, Clock, Flag, Trophy } from "lucide-react";
+import { Bomb, Clock, Flag, Trophy, Shield } from "lucide-react";
 import { Navbar } from "./navbar";
 import Link from "next/link";
 
@@ -58,6 +58,23 @@ export default function Home() {
                 Left-click to reveal a tile, right-click to flag a mine
               </CardDescription>
             </CardHeader>
+            <CardContent>
+              <div className="bg-muted/50 p-4 rounded-md text-sm">
+                <div className="flex items-start gap-2">
+                  <Shield className="h-5 w-5 text-primary mt-0.5" />
+                  <div>
+                    <p className="font-medium mb-1">Verifiable Scores with SP1</p>
+                    <p>When you win, your score is calculated based on time and difficulty. SP1 generates a zero-knowledge proof that verifies:</p>
+                    <ul className="list-disc pl-5 mt-2 space-y-1">
+                      <li>You completed a valid Minesweeper game</li>
+                      <li>The mines were placed randomly</li>
+                      <li>You revealed all non-mine cells</li>
+                      <li>Your completion time is accurate</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
           </Card>
 
           <MinesweeperGame 
