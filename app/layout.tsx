@@ -1,8 +1,8 @@
-// Updated: Added Syne and Urbanist fonts, updated ThemeProvider
+// Updated: Removed theme provider for light mode only and added background wrapper
+
 import './globals.css';
 import type { Metadata } from 'next';
 import { Syne, Urbanist } from 'next/font/google';
-import { ThemeProvider } from '@/components/ThemeProvider';
 
 const syne = Syne({ 
   subsets: ['latin'],
@@ -25,16 +25,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" className="light">
       <body className={`${syne.variable} ${urbanist.variable} font-sans`}>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-        >
-          {children}
-        </ThemeProvider>
+        {children}
       </body>
     </html>
   );

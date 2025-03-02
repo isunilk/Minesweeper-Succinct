@@ -1,24 +1,27 @@
-// Updated: Increased logo size and improved navbar styling
+// Updated: Changed logo from PNG file and removed theme toggle
+
 "use client";
 
 import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
-import { ThemeToggle } from "@/components/ThemeToggle";
 import { Info, Trophy } from "lucide-react";
 
 export function Navbar() {
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+    <header className="sticky top-0 z-50 w-full border-b bg-white">
       <div className="container flex h-14 items-center">
         <div className="mr-4 flex">
           <Link href="/" className="flex items-center space-x-2">
-            <Image 
-              src="/succinct-arcade-logo.svg" 
-              alt="Succinct Arcade Logo" 
-              width={64} 
-              height={64} 
-            />
+            <div className="relative w-32 h-12">
+              <Image 
+                src="/succinct-arcade-logo.png" 
+                alt="Succinct Arcade Logo" 
+                fill
+                className="object-contain"
+                priority
+              />
+            </div>
           </Link>
         </div>
         <div className="flex flex-1 items-center justify-end space-x-2">
@@ -35,7 +38,6 @@ export function Navbar() {
                 <span>Leaderboard</span>
               </Button>
             </Link>
-            <ThemeToggle />
           </nav>
         </div>
       </div>

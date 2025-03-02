@@ -1,11 +1,12 @@
-// Updated: Added local SP1 verification and improved proof generation
+// Updated: Fixed verification button state and score consistency issues
+
 "use client";
 
 import { useState, useEffect, useCallback, useRef, memo } from "react";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Bomb, Clock, Flag, Trophy, AlertTriangle, Award, Shield, DollarSign, Percent, Check, X } from "lucide-react";
+import { Bomb, Clock, Flag, Trophy, AlertTriangle, Award, Shield, DollarSign, Percent, Check, X, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTimer } from "@/hooks/useTimer";
 import { generateBoard, revealCell, flagCell, checkWin, calculateProgress } from "@/lib/minesweeper";
@@ -37,7 +38,7 @@ export function MinesweeperGame({ rows, cols, mines }: MinesweeperGameProps) {
   const [gameStatus, setGameStatus] = useState<GameStatus>("waiting");
   const [flagsPlaced, setFlagsPlaced] = useState(0);
   const { time, start: startTimer, stop: stopTimer, reset: resetTimer } = useTimer();
-  const [proofStatus, setProofStatus] = useState<"none" | "generating" | "verifying" | "ready">("none");
+  const [proofStatus, setProofStatus] = useState<"none" | "generating" | "verifying" | "ready" | "verified">("none");
   const [score, setScore] = useState<number | null>(null);
   const [totalScore, setTotalScore] = useState<number>(0); // Track cumulative score across games
   const [showProofDialog, setShowProofDialog] = useState(false);
@@ -48,6 +49,7 @@ export function MinesweeperGame({ rows, cols, mines }: MinesweeperGameProps) {
   const { error, setError, clearError } = useErrorBoundary();
   const previousDifficultyRef = useRef<string>("");
   const [localVerification, setLocalVerification] = useState<boolean | null>(null);
+  const [verifiedScore, setVerifiedScore] = useState<number | null>(null);
 
   // Get current difficulty based on mines count
   const getCurrentDifficulty = useCallback(() => {
@@ -55,7 +57,7 @@ export function MinesweeperGame({ rows, cols, mines }: MinesweeperGameProps) {
   }, [mines]);
 
   // Initialize the game board
-  useEffect(() => {
+  const initializeBoard = useCallback(() => {
     try {
       console.time('initializeBoard');
       const newBoard = generateBoard(rows, cols, mines);
@@ -65,6 +67,7 @@ export function MinesweeperGame({ rows, cols, mines }: MinesweeperGameProps) {
       resetTimer();
       setProofStatus("none");
       setScore(null);
+      setVerifiedScore(null);
       setProgress(0);
       setCanCashOut(false);
       setLocalVerification(null);
@@ -79,6 +82,11 @@ export function MinesweeperGame({ rows, cols, mines }: MinesweeperGameProps) {
       setError("Failed to initialize game board. Please try refreshing the page.");
     }
   }, [rows, cols, mines, resetTimer, setError, getCurrentDifficulty]);
+
+  // Initialize the game board on component mount
+  useEffect(() => {
+    initializeBoard();
+  }, [initializeBoard]);
 
   // Update progress as cells are revealed
   useEffect(() => {
@@ -243,6 +251,9 @@ export function MinesweeperGame({ rows, cols, mines }: MinesweeperGameProps) {
       setLocalVerification(verificationResult.valid);
       
       if (verificationResult.valid) {
+        // Store the verified score to ensure consistency
+        setVerifiedScore(verificationResult.score);
+        
         setProofDetails({
           gameId: verificationResult.gameId,
           score: verificationResult.score,
@@ -253,7 +264,7 @@ export function MinesweeperGame({ rows, cols, mines }: MinesweeperGameProps) {
           cellsRevealed: verificationResult.cellsRevealed,
           totalSafeCells: verificationResult.totalSafeCells
         });
-        setProofStatus("ready");
+        setProofStatus("verified");
       } else {
         setProofDetails({ error: "Proof verification failed" });
         setProofStatus("none");
@@ -265,6 +276,12 @@ export function MinesweeperGame({ rows, cols, mines }: MinesweeperGameProps) {
       setLocalVerification(false);
     }
   }, [board, time, getCurrentDifficulty]);
+
+  // Handle restart game
+  const handleRestartGame = useCallback(() => {
+    initializeBoard();
+    setShowProofDialog(false);
+  }, [initializeBoard]);
 
   // Render the game board in chunks to improve performance
   const renderBoard = useCallback(() => {
@@ -300,6 +317,9 @@ export function MinesweeperGame({ rows, cols, mines }: MinesweeperGameProps) {
     return chunks;
   }, [board, rows, cols, gameStatus, handleCellClick, handleRightClick]);
 
+  // Get the score to display - use verified score if available
+  const displayScore = verifiedScore !== null ? verifiedScore : score;
+
   return (
     <>
       {error && (
@@ -323,13 +343,13 @@ export function MinesweeperGame({ rows, cols, mines }: MinesweeperGameProps) {
               </Badge>
             </div>
             <div className="flex items-center gap-4">
-              {score !== null && (
+              {displayScore !== null && (
                 <Badge variant="outline" className="flex items-center gap-1 px-3 py-1">
                   <Award className="h-4 w-4 text-yellow-500" />
-                  <span>Score: {score}</span>
+                  <span>Score: {displayScore}</span>
                 </Badge>
               )}
-              {totalScore > 0 && score === null && (
+              {totalScore > 0 && displayScore === null && (
                 <Badge variant="outline" className="flex items-center gap-1 px-3 py-1">
                   <Award className="h-4 w-4 text-purple-500" />
                   <span>Total: {totalScore}</span>
@@ -375,7 +395,7 @@ export function MinesweeperGame({ rows, cols, mines }: MinesweeperGameProps) {
             {gameStatus === "won" && (
               <div className="flex items-center text-green-600 gap-2">
                 <Trophy className="h-5 w-5" />
-                <span>Congratulations! You won in {time} seconds with a score of {score}.</span>
+                <span>Congratulations! You won in {time} seconds with a score of {displayScore}.</span>
               </div>
             )}
           </div>
@@ -389,9 +409,28 @@ export function MinesweeperGame({ rows, cols, mines }: MinesweeperGameProps) {
                 Cash Out ({Math.round(progress)}%)
               </Button>
             )}
+            {(gameStatus === "won" || gameStatus === "lost") && (
+              <Button 
+                onClick={handleRestartGame} 
+                variant="outline" 
+                className="flex items-center gap-2"
+              >
+                <RefreshCw className="h-4 w-4" />
+                New Game
+              </Button>
+            )}
             {gameStatus === "won" && proofStatus === "ready" && (
               <Button onClick={() => generateProof(false)} className="bg-green-600 hover:bg-green-700">
                 Verify Score with ZK Proof
+              </Button>
+            )}
+            {gameStatus === "won" && proofStatus === "verified" && (
+              <Button 
+                onClick={() => setShowProofDialog(true)} 
+                className="bg-blue-600 hover:bg-blue-700 flex items-center gap-2"
+              >
+                <Shield className="h-4 w-4" />
+                View Verified Score
               </Button>
             )}
             {gameStatus === "lost" && (
@@ -538,7 +577,15 @@ export function MinesweeperGame({ rows, cols, mines }: MinesweeperGameProps) {
             </div>
           )}
           
-          <DialogFooter>
+          <DialogFooter className="flex justify-between">
+            <Button 
+              onClick={handleRestartGame} 
+              variant="outline" 
+              className="flex items-center gap-2"
+            >
+              <RefreshCw className="h-4 w-4" />
+              New Game
+            </Button>
             <Button onClick={() => setShowProofDialog(false)}>Close</Button>
           </DialogFooter>
         </DialogContent>

@@ -191,3 +191,145 @@ export async function generateGameProof(gameData: {
     const proof = await sp1Module!.generateProof(preparedData);
     
     // Create a proof object with metadata
+    const proofObject = {
+      gameId: Math.random().toString(36).substring(2, 15),
+      timestamp: Date.now(),
+      difficulty: gameData.difficulty,
+      time: gameData.time,
+      moveCount: gameData.moves.length,
+      boardSize: {
+        rows: gameData.board.length,
+        cols: gameData.board[0].length
+      },
+      mineCount: countMines(gameData.board),
+      score: score,
+      isComplete: isComplete,
+      percentComplete: percentComplete,
+      cellsRevealed: cellsRevealed,
+      totalSafeCells: totalSafeCells,
+      verified: true,
+      // This would be a real cryptographic signature in a real implementation
+      signature: "0x" + Array(64).fill(0).map(() => Math.floor(Math.random() * 16).toString(16)).join('')
+    };
+    
+    // In a real implementation, we would include the actual proof data
+    // proofObject.proofData = Array.from(proof);
+    
+    return JSON.stringify(proofObject);
+  } catch (error) {
+    console.error("Error generating proof:", error);
+    throw new Error("Failed to generate proof");
+  }
+}
+
+// Helper function to count mines in a board
+function countMines(board: Cell[][]): number {
+  let count = 0;
+  for (let row = 0; row < board.length; row++) {
+    for (let col = 0; col < board[0].length; col++) {
+      if (board[row][col].isMine) count++;
+    }
+  }
+  return count;
+}
+
+// Calculate score based on time and difficulty
+function calculateScore(time: number, difficulty: string): number {
+  const difficultyMultiplier = 
+    difficulty === "beginner" ? 1 :
+    difficulty === "intermediate" ? 2.5 :
+    difficulty === "expert" ? 5 : 1;
+  
+  // Base score calculation: faster times = higher scores
+  // For example: 1000 * difficultyMultiplier / time
+  const baseScore = Math.floor(1000 * difficultyMultiplier / time);
+  
+  return baseScore;
+}
+
+// Verify a game proof
+export async function verifyGameProof(proof: string): Promise<{
+  valid: boolean;
+  score?: number;
+  time?: number;
+  difficulty?: string;
+  gameId?: string;
+  isComplete?: boolean;
+  percentComplete?: number;
+  cellsRevealed?: number;
+  totalSafeCells?: number;
+}> {
+  console.log("Verifying SP1 proof");
+  
+  // Initialize SP1 if not already initialized
+  if (!sp1Module) {
+    const initialized = await initSP1();
+    if (!initialized) {
+      return { valid: false };
+    }
+  }
+  
+  // In a real implementation, this would call the SP1 verifier
+  try {
+    const proofData = JSON.parse(proof);
+    
+    // In a real implementation, we would extract and verify the actual proof
+    // const proofBytes = new Uint8Array(proofData.proofData);
+    // const isValid = await sp1Module!.verifyProof(proofBytes);
+    
+    // For now, we'll simulate verification with a delay
+    await new Promise(resolve => setTimeout(resolve, 500));
+    const isValid = true; // Mock verification result
+    
+    if (isValid) {
+      return {
+        valid: true,
+        score: proofData.score,
+        time: proofData.time,
+        difficulty: proofData.difficulty,
+        gameId: proofData.gameId,
+        isComplete: proofData.isComplete,
+        percentComplete: proofData.percentComplete,
+        cellsRevealed: proofData.cellsRevealed,
+        totalSafeCells: proofData.totalSafeCells
+      };
+    } else {
+      return { valid: false };
+    }
+  } catch (e) {
+    console.error("Error verifying proof:", e);
+    return { valid: false };
+  }
+}
+
+// WASM Module Interface
+// This would be the interface to the Rust-compiled WASM module
+export interface WasmInterface {
+  // Core game functions
+  generateBoard: (rows: number, cols: number, mines: number) => Uint8Array;
+  revealCell: (board: Uint8Array, row: number, col: number) => { board: Uint8Array, hitMine: boolean };
+  flagCell: (board: Uint8Array, row: number, col: number) => { board: Uint8Array, flagCount: number };
+  checkWin: (board: Uint8Array, mines: number) => boolean;
+  
+  // SP1 proof generation
+  generateProof: (
+    board: Uint8Array, 
+    moves: Uint8Array, 
+    time: number, 
+    difficulty: string
+  ) => Uint8Array;
+  
+  // SP1 proof verification
+  verifyProof: (proof: Uint8Array) => boolean;
+}
+
+// Placeholder for WASM module loading
+export async function loadWasmModule(): Promise<WasmInterface | null> {
+  // In a real implementation, this would load the Rust-compiled WASM module
+  // For example:
+  // const wasmModule = await import('@/wasm/minesweeper_bg.wasm');
+  // return wasmModule as unknown as WasmInterface;
+  
+  console.log("WASM module would be loaded here");
+  return null;
+}

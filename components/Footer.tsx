@@ -1,4 +1,5 @@
-// Created: Footer component with attribution
+// Updated: Centered footer text
+
 "use client";
 
 import Link from "next/link";
