@@ -1,4 +1,4 @@
-// Updated: Fixed right-click flagging and improved game logic
+// Updated: Fixed right-click flagging, improved game logic, and optimized performance
 import { Cell, RevealResult, FlagResult } from "./types";
 import { loadWasmModule, WasmInterface } from "./sp1";
 
@@ -18,10 +18,12 @@ export async function initWasm(): Promise<boolean> {
 
 // Generate a new game board
 export function generateBoard(rows: number, cols: number, mineCount: number): Cell[][] {
+  console.time('generateBoard');
   // If WASM module is available, use it for better performance and security
   if (wasmModule) {
     // This would call the WASM implementation
     const boardData = wasmModule.generateBoard(rows, cols, mineCount);
+    console.timeEnd('generateBoard');
     return deserializeBoard(boardData, rows, cols);
   }
   
@@ -66,15 +68,18 @@ export function generateBoard(rows: number, cols: number, mineCount: number): Ce
     }
   }
   
+  console.timeEnd('generateBoard');
   return board;
 }
 
 // Reveal a cell and handle cascading reveals for empty cells
 export function revealCell(board: Cell[][], row: number, col: number): RevealResult {
+  console.time('revealCell');
   // If WASM module is available, use it
   if (wasmModule) {
     const serializedBoard = serializeBoard(board);
     const result = wasmModule.revealCell(serializedBoard, row, col);
+    console.timeEnd('revealCell');
     return {
       updatedBoard: deserializeBoard(result.board, board.length, board[0].length),
       hitMine: result.hitMine
@@ -82,15 +87,17 @@ export function revealCell(board: Cell[][], row: number, col: number): RevealRes
   }
   
   // Fallback to JavaScript implementation
-  const updatedBoard = JSON.parse(JSON.stringify(board));
+  // Use a more efficient approach to avoid deep cloning the entire board
+  const updatedBoard = board.map(row => [...row]);
   
   // If cell is flagged or already revealed, do nothing
   if (updatedBoard[row][col].isFlagged || updatedBoard[row][col].isRevealed) {
+    console.timeEnd('revealCell');
     return { updatedBoard, hitMine: false };
   }
   
   // Reveal the cell
-  updatedBoard[row][col].isRevealed = true;
+  updatedBoard[row][col] = { ...updatedBoard[row][col], isRevealed: true };
   
   // Check if it's a mine
   if (updatedBoard[row][col].isMine) {
@@ -98,32 +105,55 @@ export function revealCell(board: Cell[][], row: number, col: number): RevealRes
     for (let r = 0; r < updatedBoard.length; r++) {
       for (let c = 0; c < updatedBoard[0].length; c++) {
         if (updatedBoard[r][c].isMine) {
-          updatedBoard[r][c].isRevealed = true;
+          updatedBoard[r][c] = { ...updatedBoard[r][c], isRevealed: true };
         }
       }
     }
+    console.timeEnd('revealCell');
     return { updatedBoard, hitMine: true };
   }
   
   // If it's an empty cell (no neighboring mines), reveal neighbors recursively
+  // Use an iterative approach instead of recursive to avoid stack overflow
   if (updatedBoard[row][col].neighborMines === 0) {
     const rows = updatedBoard.length;
     const cols = updatedBoard[0].length;
     
-    // Check all 8 surrounding cells
-    for (let r = Math.max(0, row - 1); r <= Math.min(rows - 1, row + 1); r++) {
-      for (let c = Math.max(0, col - 1); c <= Math.min(cols - 1, col + 1); c++) {
-        if (r === row && c === col) continue;
-        if (!updatedBoard[r][c].isRevealed && !updatedBoard[r][c].isFlagged) {
-          const result = revealCell(updatedBoard, r, c);
-          if (result.hitMine) {
-            return result;
+    // Use a queue for breadth-first search
+    const queue: [number, number][] = [[row, col]];
+    
+    while (queue.length > 0) {
+      const [r, c] = queue.shift()!;
+      
+      // Check all 8 surrounding cells
+      for (let dr = -1; dr <= 1; dr++) {
+        for (let dc = -1; dc <= 1; dc++) {
+          if (dr === 0 && dc === 0) continue;
+          
+          const nr = r + dr;
+          const nc = c + dc;
+          
+          // Check if the cell is valid
+          if (nr >= 0 && nr < rows && nc >= 0 && nc < cols) {
+            const cell = updatedBoard[nr][nc];
+            
+            // If the cell is not revealed and not flagged
+            if (!cell.isRevealed && !cell.isFlagged) {
+              // Reveal the cell
+              updatedBoard[nr][nc] = { ...cell, isRevealed: true };
+              
+              // If it's an empty cell, add it to the queue
+              if (cell.neighborMines === 0) {
+                queue.push([nr, nc]);
+              }
+            }
           }
         }
       }
     }
   }
   
+  console.timeEnd('revealCell');
   return { updatedBoard, hitMine: false };
 }
 
@@ -140,12 +170,13 @@ export function flagCell(board: Cell[][], row: number, col: number): FlagResult 
   }
   
   // Fallback to JavaScript implementation
-  const updatedBoard = JSON.parse(JSON.stringify(board));
-  let flagCount = 0;
+  // Use a more efficient approach to avoid deep cloning the entire board
+  const updatedBoard = board.map(row => [...row]);
   
   // If cell is already revealed, do nothing
   if (updatedBoard[row][col].isRevealed) {
     // Count flags
+    let flagCount = 0;
     for (let r = 0; r < updatedBoard.length; r++) {
       for (let c = 0; c < updatedBoard[0].length; c++) {
         if (updatedBoard[r][c].isFlagged) flagCount++;
@@ -155,9 +186,13 @@ export function flagCell(board: Cell[][], row: number, col: number): FlagResult 
   }
   
   // Toggle flag
-  updatedBoard[row][col].isFlagged = !updatedBoard[row][col].isFlagged;
+  updatedBoard[row][col] = { 
+    ...updatedBoard[row][col], 
+    isFlagged: !updatedBoard[row][col].isFlagged 
+  };
   
   // Count flags
+  let flagCount = 0;
   for (let r = 0; r < updatedBoard.length; r++) {
     for (let c = 0; c < updatedBoard[0].length; c++) {
       if (updatedBoard[r][c].isFlagged) flagCount++;

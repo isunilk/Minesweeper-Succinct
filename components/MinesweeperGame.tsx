@@ -1,7 +1,7 @@
-// Updated: Added partial game verification, cash out button, and fixed right-click flagging
+// Updated: Added partial game verification, cash out button, fixed right-click flagging, and optimized performance
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, memo } from "react";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -21,12 +21,16 @@ import {
   DialogFooter
 } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
+import { useErrorBoundary } from "@/hooks/useErrorBoundary";
 
 interface MinesweeperGameProps {
   rows: number;
   cols: number;
   mines: number;
 }
+
+// Memoize the GameCell component to prevent unnecessary re-renders
+const MemoizedGameCell = memo(GameCell);
 
 export function MinesweeperGame({ rows, cols, mines }: MinesweeperGameProps) {
   const [board, setBoard] = useState<any[][]>([]);
@@ -40,29 +44,41 @@ export function MinesweeperGame({ rows, cols, mines }: MinesweeperGameProps) {
   const movesRef = useRef<string[]>([]);
   const [progress, setProgress] = useState(0);
   const [canCashOut, setCanCashOut] = useState(false);
+  const { error, setError, clearError } = useErrorBoundary();
 
   // Initialize the game board
   useEffect(() => {
-    const newBoard = generateBoard(rows, cols, mines);
-    setBoard(newBoard);
-    setGameStatus("waiting");
-    setFlagsPlaced(0);
-    resetTimer();
-    setProofStatus("none");
-    setScore(null);
-    setProgress(0);
-    setCanCashOut(false);
-    movesRef.current = [];
-  }, [rows, cols, mines, resetTimer]);
+    try {
+      console.time('initializeBoard');
+      const newBoard = generateBoard(rows, cols, mines);
+      setBoard(newBoard);
+      setGameStatus("waiting");
+      setFlagsPlaced(0);
+      resetTimer();
+      setProofStatus("none");
+      setScore(null);
+      setProgress(0);
+      setCanCashOut(false);
+      movesRef.current = [];
+      console.timeEnd('initializeBoard');
+    } catch (err) {
+      console.error("Error initializing board:", err);
+      setError("Failed to initialize game board. Please try refreshing the page.");
+    }
+  }, [rows, cols, mines, resetTimer, setError]);
 
   // Update progress as cells are revealed
   useEffect(() => {
     if (gameStatus === "playing") {
-      const currentProgress = calculateProgress(board, mines);
-      setProgress(currentProgress);
-      
-      // Enable cash out when at least 30% of the board is revealed
-      setCanCashOut(currentProgress >= 30);
+      try {
+        const currentProgress = calculateProgress(board, mines);
+        setProgress(currentProgress);
+        
+        // Enable cash out when at least 30% of the board is revealed
+        setCanCashOut(currentProgress >= 30);
+      } catch (err) {
+        console.error("Error calculating progress:", err);
+      }
     }
   }, [board, mines, gameStatus]);
 
@@ -81,49 +97,54 @@ export function MinesweeperGame({ rows, cols, mines }: MinesweeperGameProps) {
   const handleCellClick = useCallback((row: number, col: number) => {
     if (gameStatus === "won" || gameStatus === "lost") return;
     
-    // Start the timer on first click
-    if (gameStatus === "waiting") {
-      setGameStatus("playing");
-      startTimer();
-    }
+    try {
+      // Start the timer on first click
+      if (gameStatus === "waiting") {
+        setGameStatus("playing");
+        startTimer();
+      }
 
-    // Record the move
-    movesRef.current.push(`reveal:${row},${col}`);
+      // Record the move
+      movesRef.current.push(`reveal:${row},${col}`);
 
-    const result = revealCell(board, row, col);
-    
-    if (result.hitMine) {
-      setGameStatus("lost");
-      stopTimer();
-      // Show all mines when game is lost
+      const result = revealCell(board, row, col);
+      
+      if (result.hitMine) {
+        setGameStatus("lost");
+        stopTimer();
+        // Show all mines when game is lost
+        setBoard(result.updatedBoard);
+        return;
+      }
+
       setBoard(result.updatedBoard);
-      return;
+      
+      // Check if player has won
+      if (checkWin(result.updatedBoard, mines)) {
+        setGameStatus("won");
+        stopTimer();
+        
+        // Calculate score
+        const difficulty = 
+          mines === 10 ? "beginner" :
+          mines === 40 ? "intermediate" : "expert";
+        
+        const calculatedScore = calculateScore(time, difficulty);
+        setScore(calculatedScore);
+        
+        // Start proof generation
+        setProofStatus("generating");
+        
+        // Generate proof (would be replaced with actual SP1 proof generation)
+        setTimeout(() => {
+          setProofStatus("ready");
+        }, 800);
+      }
+    } catch (err) {
+      console.error("Error handling cell click:", err);
+      setError("An error occurred while revealing a cell. Please try again.");
     }
-
-    setBoard(result.updatedBoard);
-    
-    // Check if player has won
-    if (checkWin(result.updatedBoard, mines)) {
-      setGameStatus("won");
-      stopTimer();
-      
-      // Calculate score
-      const difficulty = 
-        mines === 10 ? "beginner" :
-        mines === 40 ? "intermediate" : "expert";
-      
-      const calculatedScore = calculateScore(time, difficulty);
-      setScore(calculatedScore);
-      
-      // Start proof generation
-      setProofStatus("generating");
-      
-      // Generate proof (would be replaced with actual SP1 proof generation)
-      setTimeout(() => {
-        setProofStatus("ready");
-      }, 800);
-    }
-  }, [board, gameStatus, mines, startTimer, stopTimer, time, calculateScore]);
+  }, [board, gameStatus, mines, startTimer, stopTimer, time, calculateScore, setError]);
 
   // Handle right-click (flag placement)
   const handleRightClick = useCallback((row: number, col: number, e: React.MouseEvent) => {
@@ -131,42 +152,52 @@ export function MinesweeperGame({ rows, cols, mines }: MinesweeperGameProps) {
     
     if (gameStatus !== "playing" && gameStatus !== "waiting") return;
     
-    if (gameStatus === "waiting") {
-      setGameStatus("playing");
-      startTimer();
+    try {
+      if (gameStatus === "waiting") {
+        setGameStatus("playing");
+        startTimer();
+      }
+
+      // Record the move
+      movesRef.current.push(`flag:${row},${col}`);
+
+      const result = flagCell(board, row, col);
+      setBoard(result.updatedBoard);
+      setFlagsPlaced(result.flagCount);
+    } catch (err) {
+      console.error("Error handling right click:", err);
+      setError("An error occurred while flagging a cell. Please try again.");
     }
-
-    // Record the move
-    movesRef.current.push(`flag:${row},${col}`);
-
-    const result = flagCell(board, row, col);
-    setBoard(result.updatedBoard);
-    setFlagsPlaced(result.flagCount);
-  }, [board, gameStatus, startTimer]);
+  }, [board, gameStatus, startTimer, setError]);
 
   // Cash out with partial progress
   const handleCashOut = useCallback(() => {
     if (gameStatus !== "playing" || !canCashOut) return;
     
-    stopTimer();
-    setGameStatus("won"); // Change status to won for UI consistency
-    
-    // Calculate partial score
-    const difficulty = 
-      mines === 10 ? "beginner" :
-      mines === 40 ? "intermediate" : "expert";
-    
-    const partialScore = calculatePartialScore(board, time, difficulty);
-    setScore(partialScore.score);
-    
-    // Start proof generation for partial game
-    setProofStatus("generating");
-    
-    // Generate partial game proof
-    setTimeout(() => {
-      setProofStatus("ready");
-    }, 800);
-  }, [board, time, mines, gameStatus, canCashOut, stopTimer]);
+    try {
+      stopTimer();
+      setGameStatus("won"); // Change status to won for UI consistency
+      
+      // Calculate partial score
+      const difficulty = 
+        mines === 10 ? "beginner" :
+        mines === 40 ? "intermediate" : "expert";
+      
+      const partialScore = calculatePartialScore(board, time, difficulty);
+      setScore(partialScore.score);
+      
+      // Start proof generation for partial game
+      setProofStatus("generating");
+      
+      // Generate partial game proof
+      setTimeout(() => {
+        setProofStatus("ready");
+      }, 800);
+    } catch (err) {
+      console.error("Error handling cash out:", err);
+      setError("An error occurred while cashing out. Please try again.");
+    }
+  }, [board, time, mines, gameStatus, canCashOut, stopTimer, setError]);
 
   // Generate a proof using SP1
   const generateProof = useCallback(async (isPartial = false) => {
@@ -174,11 +205,11 @@ export function MinesweeperGame({ rows, cols, mines }: MinesweeperGameProps) {
     setShowProofDialog(true);
     setProofDetails(null);
     
-    const difficulty = 
-      mines === 10 ? "beginner" :
-      mines === 40 ? "intermediate" : "expert";
-    
     try {
+      const difficulty = 
+        mines === 10 ? "beginner" :
+        mines === 40 ? "intermediate" : "expert";
+      
       const proofString = await generateGameProof({
         board,
         time,
@@ -210,8 +241,49 @@ export function MinesweeperGame({ rows, cols, mines }: MinesweeperGameProps) {
     }
   }, [board, time, mines]);
 
+  // Render the game board in chunks to improve performance
+  const renderBoard = useCallback(() => {
+    const chunks = [];
+    const chunkSize = Math.min(5, Math.ceil(rows / 2)); // Adjust chunk size based on board size
+    
+    for (let rowChunk = 0; rowChunk < rows; rowChunk += chunkSize) {
+      const rowElements = [];
+      
+      for (let row = rowChunk; row < Math.min(rowChunk + chunkSize, rows); row++) {
+        for (let col = 0; col < cols; col++) {
+          if (board[row] && board[row][col]) {
+            rowElements.push(
+              <MemoizedGameCell 
+                key={`${row}-${col}`}
+                cell={board[row][col]}
+                onClick={() => handleCellClick(row, col)}
+                onRightClick={(e) => handleRightClick(row, col, e)}
+                gameStatus={gameStatus}
+              />
+            );
+          }
+        }
+      }
+      
+      chunks.push(
+        <div key={`chunk-${rowChunk}`} className="contents">
+          {rowElements}
+        </div>
+      );
+    }
+    
+    return chunks;
+  }, [board, rows, cols, gameStatus, handleCellClick, handleRightClick]);
+
   return (
     <>
+      {error && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4 flex justify-between items-center">
+          <span>{error}</span>
+          <button onClick={clearError} className="text-red-700 font-bold">×</button>
+        </div>
+      )}
+      
       <Card className="card w-full">
         <CardHeader className="pb-3">
           <div className="flex justify-between items-center">
@@ -258,17 +330,7 @@ export function MinesweeperGame({ rows, cols, mines }: MinesweeperGameProps) {
               gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
             }}
           >
-            {board.map((row, rowIndex) => 
-              row.map((cell, colIndex) => (
-                <GameCell 
-                  key={`${rowIndex}-${colIndex}`}
-                  cell={cell}
-                  onClick={() => handleCellClick(rowIndex, colIndex)}
-                  onRightClick={(e) => handleRightClick(rowIndex, colIndex, e)}
-                  gameStatus={gameStatus}
-                />
-              ))
-            )}
+            {renderBoard()}
           </div>
         </CardContent>
         <CardFooter className="flex justify-between">

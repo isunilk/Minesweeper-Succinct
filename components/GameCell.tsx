@@ -1,9 +1,10 @@
-// Updated: Fixed right-click flagging and improved cell styling
+// Updated: Fixed right-click flagging, improved cell styling, and optimized performance
 "use client";
 
 import { cn } from "@/lib/utils";
 import { Bomb, Flag } from "lucide-react";
 import { GameStatus } from "@/lib/types";
+import { memo } from "react";
 
 interface GameCellProps {
   cell: {
@@ -17,7 +18,7 @@ interface GameCellProps {
   gameStatus: GameStatus;
 }
 
-export function GameCell({ cell, onClick, onRightClick, gameStatus }: GameCellProps) {
+function GameCellComponent({ cell, onClick, onRightClick, gameStatus }: GameCellProps) {
   const getCellContent = () => {
     if (cell.isFlagged) {
       return <Flag className="h-4 w-4 text-red-500" />;
@@ -73,3 +74,6 @@ export function GameCell({ cell, onClick, onRightClick, gameStatus }: GameCellPr
     </button>
   );
 }
+
+// Memoize the component to prevent unnecessary re-renders
+export const GameCell = memo(GameCellComponent);
