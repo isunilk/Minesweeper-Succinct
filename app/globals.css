@@ -77,6 +77,19 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-urbanist bg-no-repeat bg-cover bg-center;
+    background-image: url('/background.png');
   }
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-syne font-bold;
+  }
+}
+
+.footer-highlight {
+  @apply text-purple-500 dark:text-purple-400 font-medium;
+}
+
+/* Add some transparency to cards for better visibility with background */
+.card {
+  @apply bg-background/90 backdrop-blur-sm;
 }

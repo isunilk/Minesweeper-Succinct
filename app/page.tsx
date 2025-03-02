@@ -1,4 +1,4 @@
-// Updated: Enhanced main page with score explanation
+// Updated: Added background image and adjusted card transparency
 "use client";
 
 import { useState } from "react";
@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Bomb, Clock, Flag, Trophy, Shield } from "lucide-react";
 import { Navbar } from "./navbar";
+import { Footer } from "@/components/Footer";
 import Link from "next/link";
 
 export default function Home() {
@@ -36,7 +37,7 @@ export default function Home() {
             </p>
           </div>
 
-          <Card>
+          <Card className="card">
             <CardHeader className="pb-3">
               <div className="flex justify-between items-center">
                 <CardTitle>Game Controls</CardTitle>
@@ -97,6 +98,7 @@ export default function Home() {
           </div>
         </div>
       </main>
+      <Footer />
     </div>
   );
 }

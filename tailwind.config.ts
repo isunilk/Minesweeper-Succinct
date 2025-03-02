@@ -9,6 +9,11 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        syne: ['var(--font-syne)'],
+        urbanist: ['var(--font-urbanist)'],
+        sans: ['var(--font-urbanist)'],
+      },
       backgroundImage: {
         'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
         'gradient-conic':

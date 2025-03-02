@@ -1,10 +1,18 @@
-// Updated: Added ThemeProvider for dark mode support
+// Updated: Added Syne and Urbanist fonts, updated ThemeProvider
 import './globals.css';
 import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
+import { Syne, Urbanist } from 'next/font/google';
 import { ThemeProvider } from '@/components/ThemeProvider';
 
-const inter = Inter({ subsets: ['latin'] });
+const syne = Syne({ 
+  subsets: ['latin'],
+  variable: '--font-syne'
+});
+
+const urbanist = Urbanist({ 
+  subsets: ['latin'],
+  variable: '--font-urbanist'
+});
 
 export const metadata: Metadata = {
   title: 'Succinct Minesweeper',
@@ -18,7 +26,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={inter.className}>
+      <body className={`${syne.variable} ${urbanist.variable} font-sans`}>
         <ThemeProvider
           attribute="class"
           defaultTheme="system"

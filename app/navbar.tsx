@@ -1,10 +1,11 @@
-// Created: Navigation bar component
+// Updated: Removed text from header, keeping only logo
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { Bomb, Info, Trophy } from "lucide-react";
+import { Info, Trophy } from "lucide-react";
 
 export function Navbar() {
   return (
@@ -12,8 +13,12 @@ export function Navbar() {
       <div className="container flex h-14 items-center">
         <div className="mr-4 flex">
           <Link href="/" className="flex items-center space-x-2">
-            <Bomb className="h-6 w-6" />
-            <span className="font-bold">Succinct Minesweeper</span>
+            <Image 
+              src="/succinct-arcade-logo.svg" 
+              alt="Succinct Arcade Logo" 
+              width={32} 
+              height={32} 
+            />
           </Link>
         </div>
         <div className="flex flex-1 items-center justify-end space-x-2">

@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Bomb, Clock, Flag, Trophy, AlertTriangle, Award } from "lucide-react";
+import { Bomb, Clock, Flag, Trophy, AlertTriangle, Award, Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTimer } from "@/hooks/useTimer";
 import { generateBoard, revealCell, flagCell, checkWin } from "@/lib/minesweeper";
