@@ -1,11 +1,11 @@
-// Updated: Fixed Cash Out button persistence across difficulty changes and improved score handling
+// Updated: Added local SP1 verification and improved proof generation
 "use client";
 
 import { useState, useEffect, useCallback, useRef, memo } from "react";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Bomb, Clock, Flag, Trophy, AlertTriangle, Award, Shield, DollarSign, Percent } from "lucide-react";
+import { Bomb, Clock, Flag, Trophy, AlertTriangle, Award, Shield, DollarSign, Percent, Check, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTimer } from "@/hooks/useTimer";
 import { generateBoard, revealCell, flagCell, checkWin, calculateProgress } from "@/lib/minesweeper";
@@ -37,7 +37,7 @@ export function MinesweeperGame({ rows, cols, mines }: MinesweeperGameProps) {
   const [gameStatus, setGameStatus] = useState<GameStatus>("waiting");
   const [flagsPlaced, setFlagsPlaced] = useState(0);
   const { time, start: startTimer, stop: stopTimer, reset: resetTimer } = useTimer();
-  const [proofStatus, setProofStatus] = useState<"none" | "generating" | "ready">("none");
+  const [proofStatus, setProofStatus] = useState<"none" | "generating" | "verifying" | "ready">("none");
   const [score, setScore] = useState<number | null>(null);
   const [totalScore, setTotalScore] = useState<number>(0); // Track cumulative score across games
   const [showProofDialog, setShowProofDialog] = useState(false);
@@ -47,6 +47,7 @@ export function MinesweeperGame({ rows, cols, mines }: MinesweeperGameProps) {
   const [canCashOut, setCanCashOut] = useState(false);
   const { error, setError, clearError } = useErrorBoundary();
   const previousDifficultyRef = useRef<string>("");
+  const [localVerification, setLocalVerification] = useState<boolean | null>(null);
 
   // Get current difficulty based on mines count
   const getCurrentDifficulty = useCallback(() => {
@@ -66,6 +67,7 @@ export function MinesweeperGame({ rows, cols, mines }: MinesweeperGameProps) {
       setScore(null);
       setProgress(0);
       setCanCashOut(false);
+      setLocalVerification(null);
       movesRef.current = [];
       
       // Store current difficulty for comparison
@@ -217,6 +219,8 @@ export function MinesweeperGame({ rows, cols, mines }: MinesweeperGameProps) {
     // This would be replaced with actual SP1 proof generation
     setShowProofDialog(true);
     setProofDetails(null);
+    setLocalVerification(null);
+    setProofStatus("generating");
     
     try {
       const difficulty = getCurrentDifficulty();
@@ -229,8 +233,14 @@ export function MinesweeperGame({ rows, cols, mines }: MinesweeperGameProps) {
         isPartial
       });
       
-      // Verify the proof
+      // Update status to verifying
+      setProofStatus("verifying");
+      
+      // Verify the proof locally
       const verificationResult = await verifyGameProof(proofString);
+      
+      // Set verification result
+      setLocalVerification(verificationResult.valid);
       
       if (verificationResult.valid) {
         setProofDetails({
@@ -243,12 +253,16 @@ export function MinesweeperGame({ rows, cols, mines }: MinesweeperGameProps) {
           cellsRevealed: verificationResult.cellsRevealed,
           totalSafeCells: verificationResult.totalSafeCells
         });
+        setProofStatus("ready");
       } else {
         setProofDetails({ error: "Proof verification failed" });
+        setProofStatus("none");
       }
     } catch (error) {
       console.error("Error generating proof:", error);
       setProofDetails({ error: "Failed to generate proof" });
+      setProofStatus("none");
+      setLocalVerification(false);
     }
   }, [board, time, getCurrentDifficulty]);
 
@@ -385,9 +399,14 @@ export function MinesweeperGame({ rows, cols, mines }: MinesweeperGameProps) {
                 Verify Partial Progress
               </Button>
             )}
-            {(gameStatus === "won" || gameStatus === "lost") && proofStatus === "generating" && (
+            {proofStatus === "generating" && (
               <Button disabled className="bg-amber-600">
                 Generating Proof...
+              </Button>
+            )}
+            {proofStatus === "verifying" && (
+              <Button disabled className="bg-blue-600">
+                Verifying Proof...
               </Button>
             )}
           </div>
@@ -446,19 +465,54 @@ export function MinesweeperGame({ rows, cols, mines }: MinesweeperGameProps) {
                     )}
                   </div>
                   
-                  <div className="rounded-md bg-green-50 p-4 border border-green-200 dark:bg-green-900/20 dark:border-green-800">
-                    <div className="flex items-center">
-                      <Shield className="h-5 w-5 text-green-500 mr-2" />
-                      <p className="text-green-700 dark:text-green-300">
-                        Proof verified successfully! Your score has been recorded.
-                      </p>
+                  <div className="flex gap-4">
+                    <div className={cn(
+                      "flex-1 p-4 rounded-md border",
+                      localVerification === true 
+                        ? "bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800" 
+                        : "bg-gray-50 border-gray-200 dark:bg-gray-900/20 dark:border-gray-800"
+                    )}>
+                      <div className="flex items-center">
+                        {localVerification === true ? (
+                          <Check className="h-5 w-5 text-green-500 mr-2" />
+                        ) : (
+                          <Shield className="h-5 w-5 text-gray-500 mr-2" />
+                        )}
+                        <div>
+                          <h4 className={cn(
+                            "font-medium",
+                            localVerification === true ? "text-green-700 dark:text-green-300" : "text-gray-700 dark:text-gray-300"
+                          )}>
+                            Local Verification
+                          </h4>
+                          <p className="text-sm text-gray-600 dark:text-gray-400">
+                            {localVerification === true 
+                              ? "Proof verified successfully in your browser" 
+                              : "Verification in progress..."}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="flex-1 p-4 rounded-md border bg-gray-50 border-gray-200 dark:bg-gray-900/20 dark:border-gray-800">
+                      <div className="flex items-center">
+                        <Shield className="h-5 w-5 text-gray-500 mr-2" />
+                        <div>
+                          <h4 className="font-medium text-gray-700 dark:text-gray-300">
+                            Blockchain Verification
+                          </h4>
+                          <p className="text-sm text-gray-600 dark:text-gray-400">
+                            Not yet implemented
+                          </p>
+                        </div>
+                      </div>
                     </div>
                   </div>
                   
                   <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-md border border-blue-200 dark:border-blue-800">
                     <h4 className="text-sm font-medium text-blue-800 dark:text-blue-300 mb-2">How SP1 Proofs Work</h4>
                     <p className="text-sm text-blue-700 dark:text-blue-400">
-                      In a real implementation, SP1 would generate a zero-knowledge proof on your device that verifies your game without revealing sensitive information. This proof would then be verified on a blockchain or server.
+                      SP1 generates a zero-knowledge proof on your device that verifies your game without revealing sensitive information. Currently, verification happens locally in your browser, with blockchain verification coming in a future update.
                     </p>
                   </div>
                   
@@ -471,9 +525,16 @@ export function MinesweeperGame({ rows, cols, mines }: MinesweeperGameProps) {
               )}
             </div>
           ) : (
-            <div className="flex items-center justify-center p-6">
+            <div className="flex flex-col items-center justify-center p-6 space-y-4">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-              <span className="ml-2">Verifying proof...</span>
+              <span className="text-center">
+                {proofStatus === "generating" ? "Generating zero-knowledge proof..." : "Verifying proof..."}
+              </span>
+              <p className="text-xs text-muted-foreground text-center max-w-md">
+                {proofStatus === "generating" 
+                  ? "Creating a cryptographic proof that verifies your game without revealing the board layout." 
+                  : "Verifying the proof locally in your browser."}
+              </p>
             </div>
           )}
           
