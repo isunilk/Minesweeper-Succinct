@@ -1,4 +1,4 @@
-// Updated: Fixed verification button state and score consistency issues
+// Updated: Added NFT minting integration
 
 "use client";
 
@@ -6,7 +6,7 @@ import { useState, useEffect, useCallback, useRef, memo } from "react";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Bomb, Clock, Flag, Trophy, AlertTriangle, Award, Shield, DollarSign, Percent, Check, X, RefreshCw } from "lucide-react";
+import { Bomb, Clock, Flag, Trophy, AlertTriangle, Award, Shield, DollarSign, Percent, Check, X, RefreshCw, Loader2, Wallet } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTimer } from "@/hooks/useTimer";
 import { generateBoard, revealCell, flagCell, checkWin, calculateProgress } from "@/lib/minesweeper";
@@ -23,6 +23,10 @@ import {
 } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
 import { useErrorBoundary } from "@/hooks/useErrorBoundary";
+import { BlockchainVerification } from "@/components/BlockchainVerification";
+import { BlockchainVerificationResult } from "@/lib/blockchain";
+import { NFTMinting } from "@/components/NFTMinting";
+import { NFTMintResult } from "@/lib/nft";
 
 interface MinesweeperGameProps {
   rows: number;
@@ -50,6 +54,10 @@ export function MinesweeperGame({ rows, cols, mines }: MinesweeperGameProps) {
   const previousDifficultyRef = useRef<string>("");
   const [localVerification, setLocalVerification] = useState<boolean | null>(null);
   const [verifiedScore, setVerifiedScore] = useState<number | null>(null);
+  const [blockchainVerification, setBlockchainVerification] = useState<BlockchainVerificationResult | null>(null);
+  const [showBlockchainVerification, setShowBlockchainVerification] = useState(false);
+  const [showNFTMinting, setShowNFTMinting] = useState(false);
+  const [nftMintResult, setNFTMintResult] = useState<NFTMintResult | null>(null);
 
   // Get current difficulty based on mines count
   const getCurrentDifficulty = useCallback(() => {
@@ -71,6 +79,8 @@ export function MinesweeperGame({ rows, cols, mines }: MinesweeperGameProps) {
       setProgress(0);
       setCanCashOut(false);
       setLocalVerification(null);
+      setBlockchainVerification(null);
+      setNFTMintResult(null);
       movesRef.current = [];
       
       // Store current difficulty for comparison
@@ -262,7 +272,8 @@ export function MinesweeperGame({ rows, cols, mines }: MinesweeperGameProps) {
           isComplete: verificationResult.isComplete,
           percentComplete: verificationResult.percentComplete,
           cellsRevealed: verificationResult.cellsRevealed,
-          totalSafeCells: verificationResult.totalSafeCells
+          totalSafeCells: verificationResult.totalSafeCells,
+          proofData: proofString // Store the proof data for blockchain verification
         });
         setProofStatus("verified");
       } else {
@@ -277,10 +288,22 @@ export function MinesweeperGame({ rows, cols, mines }: MinesweeperGameProps) {
     }
   }, [board, time, getCurrentDifficulty]);
 
+  // Handle blockchain verification result
+  const handleBlockchainVerificationComplete = useCallback((result: BlockchainVerificationResult) => {
+    setBlockchainVerification(result);
+  }, []);
+
+  // Handle NFT minting result
+  const handleNFTMintComplete = useCallback((result: NFTMintResult) => {
+    setNFTMintResult(result);
+  }, []);
+
   // Handle restart game
   const handleRestartGame = useCallback(() => {
     initializeBoard();
     setShowProofDialog(false);
+    setShowBlockchainVerification(false);
+    setShowNFTMinting(false);
   }, [initializeBoard]);
 
   // Render the game board in chunks to improve performance
@@ -448,12 +471,31 @@ export function MinesweeperGame({ rows, cols, mines }: MinesweeperGameProps) {
                 Verifying Proof...
               </Button>
             )}
+            {proofStatus === "verified" && !blockchainVerification && (
+              <Button 
+                onClick={() => setShowBlockchainVerification(true)}
+                className="bg-purple-600 hover:bg-purple-700 flex items-center gap-2"
+              >
+                <Wallet className="h-4 w-4" />
+                Verify On-Chain
+              </Button>
+            )}
+            {proofStatus === "verified" && !nftMintResult && (
+              <Button 
+                onClick={() => setShowNFTMinting(true)}
+                className="bg-pink-600 hover:bg-pink-700 flex items-center gap-2"
+              >
+                <Award className="h-4 w-4" />
+                Mint Achievement NFT
+              </Button>
+            )}
           </div>
         </CardFooter>
       </Card>
 
+      {/* Proof Verification Dialog */}
       <Dialog open={showProofDialog} onOpenChange={setShowProofDialog}>
-        <DialogContent>
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Zero-Knowledge Proof Verification</DialogTitle>
             <DialogDescription>
@@ -541,11 +583,45 @@ export function MinesweeperGame({ rows, cols, mines }: MinesweeperGameProps) {
                             Blockchain Verification
                           </h4>
                           <p className="text-sm text-gray-600 dark:text-gray-400">
-                            Not yet implemented
+                            {blockchainVerification 
+                              ? blockchainVerification.success 
+                                ? "Verified on blockchain" 
+                                : "Verification failed" 
+                              : "Not yet verified on-chain"}
                           </p>
                         </div>
                       </div>
                     </div>
+                  </div>
+                  
+                  <div className="flex gap-2">
+                    {!blockchainVerification && (
+                      <Button 
+                        onClick={() => {
+                          setShowProofDialog(false);
+                          setShowBlockchainVerification(true);
+                        }}
+                        className="flex items-center gap-2"
+                        variant="outline"
+                      >
+                        <Wallet className="h-4 w-4" />
+                        Verify On-Chain
+                      </Button>
+                    )}
+                    
+                    {!nftMintResult && (
+                      <Button 
+                        onClick={() => {
+                          setShowProofDialog(false);
+                          setShowNFTMinting(true);
+                        }}
+                        className="flex items-center gap-2"
+                        variant="outline"
+                      >
+                        <Award className="h-4 w-4" />
+                        Mint Achievement NFT
+                      </Button>
+                    )}
                   </div>
                   
                   <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-md border border-blue-200 dark:border-blue-800">
@@ -587,6 +663,61 @@ export function MinesweeperGame({ rows, cols, mines }: MinesweeperGameProps) {
               New Game
             </Button>
             <Button onClick={() => setShowProofDialog(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Blockchain Verification Dialog */}
+      <Dialog open={showBlockchainVerification} onOpenChange={setShowBlockchainVerification}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Blockchain Verification</DialogTitle>
+            <DialogDescription>
+              Verify your game score on the blockchain for permanent proof
+            </DialogDescription>
+          </DialogHeader>
+          
+          {proofDetails && (
+            <BlockchainVerification
+              gameId={proofDetails.gameId}
+              proofData={proofDetails.proofData}
+              score={proofDetails.score}
+              time={proofDetails.time}
+              difficulty={proofDetails.difficulty}
+              onVerificationComplete={handleBlockchainVerificationComplete}
+            />
+          )}
+          
+          <DialogFooter>
+            <Button onClick={() => setShowBlockchainVerification(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* NFT Minting Dialog */}
+      <Dialog open={showNFTMinting} onOpenChange={setShowNFTMinting}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Mint Achievement NFT</DialogTitle>
+            <DialogDescription>
+              Mint an NFT to permanently record your game achievement
+            </DialogDescription>
+          </DialogHeader>
+          
+          {proofDetails && (
+            <NFTMinting
+              gameId={proofDetails.gameId}
+              score={proofDetails.score}
+              time={proofDetails.time}
+              difficulty={proofDetails.difficulty}
+              isComplete={proofDetails.isComplete}
+              percentComplete={proofDetails.percentComplete}
+              onMintComplete={handleNFTMintComplete}
+            />
+          )}
+          
+          <DialogFooter>
+            <Button onClick={() => setShowNFTMinting(false)}>Close</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

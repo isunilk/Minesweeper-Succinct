@@ -1,4 +1,5 @@
-// Updated: Added types for partial game verification
+// Updated: Added blockchain verification types
+
 export type GameStatus = "waiting" | "playing" | "won" | "lost";
 
 export interface Cell {
@@ -47,4 +48,16 @@ export interface PartialGameScore {
   percentComplete: number;
   cellsRevealed: number;
   totalSafeCells: number;
+}
+
+export interface BlockchainGameData {
+  gameId: string;
+  score: number;
+  time: number;
+  difficulty: string;
+  isComplete: boolean;
+  percentComplete?: number;
+  timestamp: number;
+  player: string;
+  transactionHash: string;
 }

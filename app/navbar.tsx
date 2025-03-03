@@ -1,11 +1,11 @@
-// Updated: Changed logo from PNG file and removed theme toggle
+// Updated: Added achievements link
 
 "use client";
 
 import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
-import { Info, Trophy } from "lucide-react";
+import { Info, Trophy, Shield, Award } from "lucide-react";
 
 export function Navbar() {
   return (
@@ -36,6 +36,18 @@ export function Navbar() {
               <Button variant="ghost" size="sm" className="flex items-center gap-1">
                 <Trophy className="h-4 w-4" />
                 <span>Leaderboard</span>
+              </Button>
+            </Link>
+            <Link href="/blockchain">
+              <Button variant="ghost" size="sm" className="flex items-center gap-1">
+                <Shield className="h-4 w-4" />
+                <span>Blockchain</span>
+              </Button>
+            </Link>
+            <Link href="/achievements">
+              <Button variant="ghost" size="sm" className="flex items-center gap-1">
+                <Award className="h-4 w-4" />
+                <span>Achievements</span>
               </Button>
             </Link>
           </nav>

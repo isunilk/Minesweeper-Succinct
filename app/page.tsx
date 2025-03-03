@@ -1,4 +1,5 @@
-// Updated: Added background image and adjusted card transparency
+// Updated: Added achievements link
+
 "use client";
 
 import { useState } from "react";
@@ -6,7 +7,7 @@ import { MinesweeperGame } from "@/components/MinesweeperGame";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Bomb, Clock, Flag, Trophy, Shield } from "lucide-react";
+import { Bomb, Clock, Flag, Trophy, Shield, Award } from "lucide-react";
 import { Navbar } from "./navbar";
 import { Footer } from "@/components/Footer";
 import Link from "next/link";
@@ -73,6 +74,8 @@ export default function Home() {
                       <li>Your completion time is accurate</li>
                     </ul>
                     <p className="mt-2 text-amber-600 dark:text-amber-400 font-medium">New! You can now "Cash Out" for partial scores after revealing at least 30% of the board.</p>
+                    <p className="mt-2 text-blue-600 dark:text-blue-400 font-medium">New! Verify your scores on the Ethereum blockchain for permanent proof of your achievements.</p>
+                    <p className="mt-2 text-purple-600 dark:text-purple-400 font-medium">New! Mint your achievements as NFTs to showcase your Minesweeper skills.</p>
                   </div>
                 </div>
               </div>
@@ -94,6 +97,18 @@ export default function Home() {
               <Button variant="outline" className="flex items-center gap-2">
                 <Trophy className="h-4 w-4" />
                 View Leaderboard
+              </Button>
+            </Link>
+            <Link href="/blockchain">
+              <Button variant="outline" className="flex items-center gap-2">
+                <Shield className="h-4 w-4" />
+                Blockchain Verification
+              </Button>
+            </Link>
+            <Link href="/achievements">
+              <Button variant="outline" className="flex items-center gap-2">
+                <Award className="h-4 w-4" />
+                View Achievements
               </Button>
             </Link>
           </div>
