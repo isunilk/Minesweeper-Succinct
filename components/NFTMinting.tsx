@@ -5,7 +5,7 @@
 import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Shield, Wallet, Check, AlertTriangle, ExternalLink, Loader2, Award } from "lucide-react";
+import { Shield, Wallet, Check, AlertTriangle, ExternalLink, Award } from "lucide-react";
 import { getNFTManager, NFTMintResult } from '@/lib/nft';
 import { cn } from '@/lib/utils';
 
@@ -167,7 +167,7 @@ export function NFTMinting({
                 >
                   {isConnecting ? (
                     <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      <div className="mr-2 h-4 w-4 animate-spin rounded-full border-b-2 border-white"></div>
                       Connecting...
                     </>
                   ) : (
@@ -282,7 +282,7 @@ export function NFTMinting({
               >
                 {isMinting ? (
                   <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    <div className="mr-2 h-4 w-4 animate-spin rounded-full border-b-2 border-white"></div>
                     Minting NFT...
                   </>
                 ) : (

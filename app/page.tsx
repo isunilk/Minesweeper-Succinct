@@ -1,5 +1,3 @@
-// Updated: Added achievements link
-
 "use client";
 
 import { useState } from "react";
@@ -75,7 +73,6 @@ export default function Home() {
                     </ul>
                     <p className="mt-2 text-amber-600 dark:text-amber-400 font-medium">New! You can now "Cash Out" for partial scores after revealing at least 30% of the board.</p>
                     <p className="mt-2 text-blue-600 dark:text-blue-400 font-medium">New! Verify your scores on the Ethereum blockchain for permanent proof of your achievements.</p>
-                    <p className="mt-2 text-purple-600 dark:text-purple-400 font-medium">New! Mint your achievements as NFTs to showcase your Minesweeper skills.</p>
                   </div>
                 </div>
               </div>

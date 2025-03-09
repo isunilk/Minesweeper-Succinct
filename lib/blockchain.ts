@@ -1,5 +1,7 @@
 // Created: Blockchain integration for verifying game proofs on-chain
-import { ethers } from 'ethers';
+
+// Fix: Import specific functions from ethers instead of using the namespace
+import { Contract, BrowserProvider, Signer, toUtf8Bytes, id } from 'ethers';
 
 // Mock ABI for the verification contract
 const VERIFICATION_CONTRACT_ABI = [
@@ -11,9 +13,9 @@ const VERIFICATION_CONTRACT_ABI = [
 // Contract addresses for different networks
 const CONTRACT_ADDRESSES = {
   // Testnet addresses
-  sepolia: "0x1234567890123456789012345678901234567890", // Replace with actual contract address
+  sepolia: "0xe92CA823d7536E0ce9A74eBAf321C7a61Fa1E0e4", // Updated with the provided contract address
   // Mainnet address (when deployed)
-  mainnet: "0x0987654321098765432109876543210987654321" // Replace with actual contract address
+  mainnet: "0xe92CA823d7536E0ce9A74eBAf321C7a61Fa1E0e4" // Using the same address for now
 };
 
 // Interface for blockchain verification result
@@ -35,9 +37,9 @@ export interface VerifiedGameDetails {
 
 // Class to handle blockchain interactions
 export class BlockchainVerifier {
-  private provider: ethers.BrowserProvider | null = null;
-  private signer: ethers.Signer | null = null;
-  private contract: ethers.Contract | null = null;
+  private provider: BrowserProvider | null = null;
+  private signer: Signer | null = null;
+  private contract: Contract | null = null;
   private connected: boolean = false;
   private chainId: string = '';
   private address: string = '';
@@ -48,7 +50,7 @@ export class BlockchainVerifier {
       // Check if MetaMask is installed
       if (typeof window !== 'undefined' && window.ethereum) {
         // Create a provider
-        this.provider = new ethers.BrowserProvider(window.ethereum);
+        this.provider = new BrowserProvider(window.ethereum);
         
         // Request account access
         const accounts = await this.provider.send("eth_requestAccounts", []);
@@ -67,7 +69,7 @@ export class BlockchainVerifier {
           
           if (contractAddress) {
             // Create the contract instance
-            this.contract = new ethers.Contract(
+            this.contract = new Contract(
               contractAddress,
               VERIFICATION_CONTRACT_ABI,
               this.signer
@@ -128,11 +130,11 @@ export class BlockchainVerifier {
       }
       
       // Convert the gameId to bytes32
-      const gameIdBytes32 = ethers.id(gameId);
+      const gameIdBytes32 = id(gameId);
       
       // Convert the proof data to bytes
       // Fix: Use proper encoding for the proof data
-      const proofBytes = ethers.toUtf8Bytes(JSON.stringify(proofData));
+      const proofBytes = toUtf8Bytes(JSON.stringify(proofData));
       
       // Call the contract to verify the proof
       const tx = await this.contract.verifyProof(

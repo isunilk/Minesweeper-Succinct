@@ -1,6 +1,6 @@
 // Created: NFT integration for minting score verification tokens
 
-import { ethers } from 'ethers';
+import { Contract, BrowserProvider, Signer } from 'ethers';
 
 // NFT contract ABI - this should match your deployed NFT contract
 const NFT_CONTRACT_ABI = [
@@ -47,9 +47,9 @@ export interface NFTDetails {
 
 // Class to handle NFT interactions
 export class NFTManager {
-  private provider: ethers.BrowserProvider | null = null;
-  private signer: ethers.Signer | null = null;
-  private contract: ethers.Contract | null = null;
+  private provider: BrowserProvider | null = null;
+  private signer: Signer | null = null;
+  private contract: Contract | null = null;
   private connected: boolean = false;
   private chainId: string = '';
   private address: string = '';
@@ -60,7 +60,7 @@ export class NFTManager {
       // Check if MetaMask is installed
       if (typeof window !== 'undefined' && window.ethereum) {
         // Create a provider
-        this.provider = new ethers.BrowserProvider(window.ethereum);
+        this.provider = new BrowserProvider(window.ethereum);
         
         // Request account access
         const accounts = await this.provider.send("eth_requestAccounts", []);
@@ -79,7 +79,7 @@ export class NFTManager {
           
           if (contractAddress) {
             // Create the contract instance
-            this.contract = new ethers.Contract(
+            this.contract = new Contract(
               contractAddress,
               NFT_CONTRACT_ABI,
               this.signer

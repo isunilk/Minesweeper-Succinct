@@ -5,13 +5,24 @@ const nextConfig = {
     ignoreDuringBuilds: true,
   },
   typescript: {
-    // !! WARN !!
-    // Dangerously allow production builds to successfully complete even if
-    // your project has type errors.
-    // !! WARN !!
     ignoreBuildErrors: true,
   },
   images: { unoptimized: true },
+  webpack: (config, { isServer }) => {
+    // Allow wasm
+    config.experiments = {
+      ...config.experiments,
+      asyncWebAssembly: true,
+    }
+
+    // Add wasm MIME type
+    config.module.rules.push({
+      test: /\.wasm$/,
+      type: 'webassembly/async'
+    })
+
+    return config
+  }
 };
 
 module.exports = nextConfig;

@@ -1,4 +1,4 @@
-// Updated: Added blockchain verification types
+// Updated: Added visualization types
 
 export type GameStatus = "waiting" | "playing" | "won" | "lost";
 
@@ -60,4 +60,10 @@ export interface BlockchainGameData {
   timestamp: number;
   player: string;
   transactionHash: string;
+}
+
+export interface ProofVisualizationStep {
+  message: string;
+  progress: number;
+  delay: number;
 }

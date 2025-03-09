@@ -1,5 +1,3 @@
-// Updated: Removed theme provider for light mode only and added background wrapper
-
 import './globals.css';
 import type { Metadata } from 'next';
 import { Syne, Urbanist } from 'next/font/google';

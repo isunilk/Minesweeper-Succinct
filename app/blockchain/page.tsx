@@ -1,10 +1,11 @@
 // Created: Blockchain verification page for viewing on-chain verified games
+
 "use client";
 
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Trophy, Clock, Shield, Wallet, ExternalLink, RefreshCw } from "lucide-react";
+import { ArrowLeft, Trophy, Clock, Shield, Wallet, ExternalLink, RefreshCw, AlertTriangle } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Navbar } from "@/app/navbar";
 import { Footer } from "@/components/Footer";
@@ -179,7 +180,7 @@ export default function BlockchainPage() {
                       >
                         {isConnecting ? (
                           <>
-                            <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                            <div className="mr-2 h-5 w-5 animate-spin rounded-full border-b-2 border-white"></div>
                             Connecting...
                           </>
                         ) : (
@@ -213,7 +214,7 @@ export default function BlockchainPage() {
                       className="flex items-center gap-1"
                     >
                       {isLoading ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <div className="h-4 w-4 animate-spin rounded-full border-b-2 border-primary"></div>
                       ) : (
                         <RefreshCw className="h-4 w-4" />
                       )}
